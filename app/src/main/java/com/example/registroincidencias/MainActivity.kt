@@ -21,6 +21,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.registroincidencias.ui.theme.RegistroIncidenciasTheme
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +43,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun RegistroIncidenciasApp() {
+
+    var titulo by remember { mutableStateOf("") }
+    var descripcion by remember { mutableStateOf("") }
+    var mensaje by remember { mutableStateOf("Aún no hay reporte creado") }
 
     Column(
         modifier = Modifier
@@ -59,6 +70,24 @@ fun RegistroIncidenciasApp() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        OutlinedTextField(
+            value = titulo,
+            onValueChange = { titulo = it },
+            label = { Text("Título de la incidencia") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = descripcion,
+            onValueChange = { descripcion = it },
+            label = { Text("Descripción") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -75,7 +104,7 @@ fun RegistroIncidenciasApp() {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "El sistema está listo para registrar una nueva incidencia."
+                    text = mensaje
                 )
             }
         }
@@ -84,7 +113,7 @@ fun RegistroIncidenciasApp() {
 
         Button(
             onClick = {
-
+                mensaje = "Reporte preparado: $titulo"
             }
         ) {
             Text(text = "Registrar incidencia")
