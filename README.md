@@ -36,6 +36,8 @@ generar un reporte.
 
 \- \[x] Botón "Crear reporte" con retroalimentación visible en pantalla
 
+\- \[x] Interfaz con estado: campos de texto y retroalimentación al presionar botón
+
 \- \[ ] Persistencia de datos (aún no guarda en base de datos)
 
 \- \[ ] Validación de campos (aún no implementada)
