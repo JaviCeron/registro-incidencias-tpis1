@@ -1,8 +1,15 @@
 package com.example.registroincidencias
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,10 +36,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.registroincidencias.ui.theme.RegistroIncidenciasTheme
+import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
 
@@ -64,6 +74,68 @@ fun RegistroIncidenciasApp() {
     // Mensaje de error simple si intentan registrar campos vacíos
     var mostrarError by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val sensorManager = remember {
+        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    }
+    val acelerometro = remember {
+        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    }
+
+    val lifecycleOwner = context as ComponentActivity
+
+    var ejeX by remember { mutableStateOf(0f) }
+    var ejeY by remember { mutableStateOf(0f) }
+    var ejeZ by remember { mutableStateOf(0f) }
+    var hayLectura by remember { mutableStateOf(false) }
+    var escuchando by remember { mutableStateOf(false) }
+
+    DisposableEffect(acelerometro, lifecycleOwner) {
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                ejeX = event.values[0]
+                ejeY = event.values[1]
+                ejeZ = event.values[2]
+                hayLectura = true
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+        val observer = LifecycleEventObserver { _, evento ->
+            if (acelerometro != null) {
+                when (evento) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        sensorManager.registerListener(
+                            listener,
+                            acelerometro,
+                            SensorManager.SENSOR_DELAY_NORMAL
+                        )
+                        escuchando = true
+                    }
+                    Lifecycle.Event.ON_PAUSE -> {
+                        sensorManager.unregisterListener(listener)
+                        escuchando = false
+                    }
+                    else -> {}
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            sensorManager.unregisterListener(listener)
+            escuchando = false
+        }
+    }
+
+    val magnitud = sqrt(ejeX * ejeX + ejeY * ejeY + ejeZ * ejeZ)
+    val mensajeSensor = when {
+        !hayLectura -> "Sin lectura disponible aún"
+        magnitud > 15f -> "Movimiento fuerte detectado"
+        magnitud > 11f || magnitud < 8.5f -> "Movimiento moderado"
+        else -> "Dispositivo en reposo"
+    }
+
     val coloresCampo = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.Black,
         unfocusedTextColor = Color.Black,
@@ -93,7 +165,34 @@ fun RegistroIncidenciasApp() {
                     "infraestructura o servicios."
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Diagnóstico del dispositivo",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (acelerometro == null) {
+                    Text(text = "Acelerómetro: no disponible")
+                    Text(
+                        text = "Este dispositivo no tiene acelerómetro, no hay lectura disponible.",
+                        color = Color(0xFFC62828)
+                    )
+                } else {
+                    Text(text = "Acelerómetro: disponible")
+                    Text(text = "Escucha: " + if (escuchando) "activa" else "detenida")
+                    Text(text = "X: %.2f   Y: %.2f   Z: %.2f".format(ejeX, ejeY, ejeZ))
+                    Text(text = mensajeSensor, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = titulo,
