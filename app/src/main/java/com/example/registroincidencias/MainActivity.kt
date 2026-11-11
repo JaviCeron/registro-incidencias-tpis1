@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,24 +67,20 @@ data class Incidencia(
 @Composable
 fun RegistroIncidenciasApp() {
 
-    var titulo by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-
-    // Lista de TODAS las incidencias registradas (en memoria, sin base de datos aún)
+    var titulo by rememberSaveable { mutableStateOf("") }
+    var descripcion by rememberSaveable { mutableStateOf("") }
     val incidencias = remember { mutableStateListOf<Incidencia>() }
-
-    // Mensaje de error simple si intentan registrar campos vacíos
-    var mostrarError by remember { mutableStateOf(false) }
+    var mostrarError by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     val sensorManager = remember {
-        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     }
     val acelerometro = remember {
-        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     }
 
-    val lifecycleOwner = context as ComponentActivity
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var ejeX by remember { mutableStateOf(0f) }
     var ejeY by remember { mutableStateOf(0f) }
@@ -102,7 +100,7 @@ fun RegistroIncidenciasApp() {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
         val observer = LifecycleEventObserver { _, evento ->
-            if (acelerometro != null) {
+            if (acelerometro != null && sensorManager != null) {
                 when (evento) {
                     Lifecycle.Event.ON_RESUME -> {
                         sensorManager.registerListener(
@@ -123,7 +121,7 @@ fun RegistroIncidenciasApp() {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            sensorManager.unregisterListener(listener)
+            sensorManager?.unregisterListener(listener)
             escuchando = false
         }
     }
