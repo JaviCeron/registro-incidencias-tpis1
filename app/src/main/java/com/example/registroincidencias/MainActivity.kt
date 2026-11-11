@@ -1,5 +1,4 @@
 package com.example.registroincidencias
-
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -11,8 +10,10 @@ import androidx.activity.compose.setContent
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,16 +25,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,19 +59,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Representa una incidencia registrada
 data class Incidencia(
     val titulo: String,
-    val descripcion: String
+    val descripcion: String,
+    val prioridad: String = "Media"
 )
 
 @Composable
-fun RegistroIncidenciasApp() {
-
-    var titulo by rememberSaveable { mutableStateOf("") }
-    var descripcion by rememberSaveable { mutableStateOf("") }
-    val incidencias = remember { mutableStateListOf<Incidencia>() }
-    var mostrarError by rememberSaveable { mutableStateOf(false) }
+fun RegistroIncidenciasApp(vm: IncidenciaViewModel = viewModel()) {
 
     val context = LocalContext.current
     val sensorManager = remember {
@@ -193,11 +189,8 @@ fun RegistroIncidenciasApp() {
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = titulo,
-            onValueChange = {
-                titulo = it
-                mostrarError = false
-            },
+            value = vm.titulo,
+            onValueChange = vm::actualizarTitulo,
             label = { Text("Título de la incidencia") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -207,17 +200,34 @@ fun RegistroIncidenciasApp() {
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
-            value = descripcion,
-            onValueChange = {
-                descripcion = it
-                mostrarError = false
-            },
+            value = vm.descripcion,
+            onValueChange = vm::actualizarDescripcion,
             label = { Text("Descripción") },
             modifier = Modifier.fillMaxWidth(),
             colors = coloresCampo
         )
 
-        if (mostrarError) {
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = "Prioridad",
+            modifier = Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.Bold
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            vm.prioridades.forEach { opcion ->
+                RadioButton(
+                    selected = vm.prioridad == opcion,
+                    onClick = { vm.seleccionarPrioridad(opcion) }
+                )
+                Text(text = opcion)
+            }
+        }
+
+        if (vm.mostrarError) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Completa el título y la descripción antes de registrar.",
@@ -229,32 +239,30 @@ fun RegistroIncidenciasApp() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                if (titulo.isBlank() || descripcion.isBlank()) {
-                    mostrarError = true
-                } else {
-                    incidencias.add(0, Incidencia(titulo, descripcion)) // la más nueva primero
-                    titulo = ""
-                    descripcion = ""
-                    mostrarError = false
-                }
-            },
+            onClick = vm::registrar,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = "Registrar incidencia")
         }
 
+        OutlinedButton(
+            onClick = vm::limpiar,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "Limpiar formulario")
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Incidencias registradas (${incidencias.size})",
+            text = "Incidencias registradas (${vm.incidencias.size})",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (incidencias.isEmpty()) {
+        if (vm.incidencias.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
@@ -269,7 +277,7 @@ fun RegistroIncidenciasApp() {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(incidencias) { incidencia ->
+                items(vm.incidencias) { incidencia ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
@@ -284,6 +292,10 @@ fun RegistroIncidenciasApp() {
                             Text(
                                 text = incidencia.descripcion,
                                 style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Prioridad: ${incidencia.prioridad}",
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
